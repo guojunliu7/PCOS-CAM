@@ -1,0 +1,18 @@
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
+tmp/
+
+# Downloaded data and generated analysis outputs stay local.
+*.h5ad
+*.rds
+*.Rds
+*.log
+*.pdf
+*.png
+validation/**/*.csv
+validation/**/*.tsv
+validation/**/*.json
+validation/**/*.xlsx
+validation/**/*.txt
