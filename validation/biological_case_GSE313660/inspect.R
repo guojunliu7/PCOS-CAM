@@ -1,5 +1,5 @@
 suppressPackageStartupMessages(library(Seurat))
-base <- '/Users/LGJ-15/Documents/PCOS/01_PCOS生信/RawData/GSE313660'
+base <- Sys.getenv('PCOS_GSE313660_DIR', unset = file.path('..', 'RawData', 'GSE313660'))
 obj <- readRDS(file.path(base, 'GSE313660_Wegrzynowicz_PCOS_GEO.Rds'))
 cat('class:', class(obj), '\n')
 cat('dimensions:', paste(dim(obj), collapse=' x '), '\n')
