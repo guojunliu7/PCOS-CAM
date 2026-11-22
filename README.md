@@ -1,17 +1,17 @@
 # PCOS-CAM
 
-用于多囊卵巢综合征（PCOS）研究，基于卵巢标记字典的细胞簇注释。内置 data/File_1.xlsx，包含 17 篇研究、153 个标签和 1,501 个标签–基因组合。核心加权评分来自 [FPCAM](https://github.com/guojunliu7/FPCAM/tree/e90cf57d61543f655a27131acdc3fa8539456d22)，采用 Apache-2.0 许可证。
+PCOS-CAM annotates cell clusters for polycystic ovary syndrome (PCOS) research using an ovarian marker dictionary. The included `data/File_1.xlsx` covers 17 studies, 153 labels, and 1,501 label–gene combinations. Its core weighted scoring method is derived from [FPCAM](https://github.com/guojunliu7/FPCAM/tree/e90cf57d61543f655a27131acdc3fa8539456d22), which is licensed under Apache-2.0.
 
-本仓库包含应用源码、标记字典、示例表达表和验证脚本。原始单细胞数据、大型分析对象及生成的图表和结果文件未纳入版本控制；验证脚本所需的外部数据来源见各验证目录的 README。
+This repository contains the application source code, marker dictionary, example expression table, and validation scripts. Raw single-cell data, large analysis objects, and generated figures and result files are not tracked. The README files in the validation directories describe the external data sources required by those scripts.
 
-在本目录的 R 会话中启动：
+Run the Shiny app from an R session in this directory:
 
 ```r
-install.packages(c("shiny", "readxl", "ggplot2", "openxlsx")) # 首次安装
+install.packages(c("shiny", "readxl", "ggplot2", "openxlsx")) # First-time setup
 shiny::runApp(".")
 ```
 
-也可以直接在 R 中注释：
+You can also annotate clusters directly in R:
 
 ```r
 source("Global.R")
@@ -21,22 +21,22 @@ x <- read_pcos_expression("www/PCOS_GSE240688_cluster_expression.csv")
 h <- read_pcos_hierarchy("data/File_1.xlsx", d, "data/label_hierarchy.csv")
 r <- pcos_cam(x, d, h, "Human")
 r$annotations
-# Seurat 对象中的簇编号须与输入表一致
+# Cluster IDs in a Seurat object must match those in the input table.
 # obj$PCOS_CAM <- pcos_cluster_labels(obj$seurat_clusters, r)
 ```
 
-输入为各簇标记基因的非负表达量。支持成对的 cluster_0_Markergene、cluster_0_Express 列，首列为 gene 的宽表，以及 cluster、gene、expression 长表。成对输入保留 cluster_0 等原编号。每簇每基因应有一个表达值。使用精确基因符号，小鼠输入通过工作簿 Mouse_to_human 页转换。
+The input contains non-negative expression values for marker genes in each cluster. Supported layouts are paired `cluster_0_Markergene` and `cluster_0_Express` columns; a wide table with `gene` as its first column; and a long table with `cluster`, `gene`, and `expression` columns. Paired input retains the original cluster IDs, such as `cluster_0`. Each cluster–gene pair should have one expression value. Use exact gene symbols. Mouse genes are converted through the `Mouse_to_human` sheet in the workbook.
 
-每个命中基因的贡献为其表达量除以该簇所有输入基因的表达总量，再乘以字典 percent 权重。未映射和未命中字典的输入仍计入表达分母。得分是各标签命中贡献之和，输入基因集合会影响得分尺度。零得分标记为 Unassigned，最高分并列标记为 Ambiguous 并列出全部候选。分差 margin 为第一、第二名之差；delta1 和 delta2 沿用上游的中位数差定义。权重和得分均不表示注释正确的概率。
+For each matched gene, its contribution is its expression divided by the total expression of all input genes in that cluster, multiplied by the dictionary's `percent` weight. Unmapped input genes and genes absent from the dictionary still contribute to the expression denominator. A label's score is the sum of its matched gene contributions, so the set of input genes affects the score scale. A zero score yields `Unassigned`. A tie for the highest score yields `Ambiguous` and lists all tied candidates. The `margin` is the difference between the highest and second-highest scores; `delta1` and `delta2` retain the median-difference definitions of the upstream method. Neither the weights nor the scores are probabilities that an annotation is correct.
 
-下载工作簿包含逐簇结果、完整得分矩阵、逐基因贡献和未映射的小鼠基因。热图显示各簇前三个正分候选的并集；UMAP 使用用户提供的已有坐标和本次簇注释。独立 PCOS 队列的注释准确率尚待验证。
+The downloadable workbook includes cluster-level results, the full score matrix, per-gene contributions, and unmapped mouse genes. The heatmap shows the union of the top three positively scored candidates for each cluster. The UMAP display uses coordinates supplied by the user and the annotations from the current run. Annotation accuracy on an independent PCOS cohort remains to be established.
 
-## PCOS-CAM 分层注释
+## Hierarchical annotation in PCOS-CAM
 
-153 个原始标签通过显式映射归到 13 个父类。Theca / stroma 和 CD45- Immune-like 各自成组。父类使用 Evidence 中所有成功映射的候选基因；同一投票单位在父类内对同一基因只计一次。依次按票数、各单位最佳排名均值和基因符号选择前十个基因，在父类内归一化权重。细分标签继续使用原 17 篇字典权重。
+An explicit mapping assigns the 153 original labels to 13 parent classes. `Theca / stroma` and `CD45- Immune-like` are separate classes. For each parent class, the method considers all successfully mapped candidate genes in the `Evidence` sheet and counts a gene only once per voting unit within that class. It selects the top ten genes by vote count, then by the mean of each unit's best rank, and finally by gene symbol. Weights are normalized within each parent class. Fine-grained labels retain the weights from the original 17-study dictionary.
 
-两级分别比较候选，广义标签也可在第二级胜出。默认每级至少命中两个正表达标记，并要求相对分差（第一名减第二名，再除以第一名）达到 0.10。这两个可调的初始阈值尚待独立队列校准。大类零命中或命中数不足返回 Unassigned，大类并列或分差不足返回 Ambiguous。父类通过、细分证据不足时返回父类。diagnostics 保留各级候选、次选、命中基因数、命中字典权重之和及首位基因贡献占比；并列第一时没有唯一标签可供计算覆盖度。
+Candidates are compared separately at the parent and fine-grained levels. A broad label can also win at the second level. By default, each level requires at least two matched markers with positive expression and a relative score margin of at least 0.10, calculated as `(top score - second score) / top score`. These adjustable initial thresholds have not yet been calibrated on an independent cohort. A parent class with no matches or too few matched markers yields `Unassigned`; a tie or insufficient margin yields `Ambiguous`. When the parent class passes but fine-grained evidence is insufficient, the parent class is returned. `diagnostics` retains the leading and runner-up candidates at each level, the number of matched genes, the sum of their dictionary weights, and the fraction of the leading score contributed by its top gene. When first place is tied, there is no unique label for calculating coverage.
 
-稳定性检查将首位贡献基因从同级所有候选中移除，再比较得分；多个基因并列贡献第一时，分别移除并报告结果。stable 为 FALSE 表示至少一次移除会改变唯一首选。当前版本将其作为复核标志。热图和分差图展示父类竞争。下载包含全字典评分、父类字典及两级逐基因贡献。
+For the stability check, the highest-contributing gene is removed from all candidates at the same level before rescoring. If several genes tie for the highest contribution, each is removed in a separate check. `stable = FALSE` means at least one removal changes the unique top candidate. The current version uses this as a review flag. The heatmap and margin plot show competition among parent classes. Downloads include the full-dictionary scores, parent-class dictionary, and per-gene contributions at both levels.
 
-当正式注释仅为 `Granulosa`，且全字典唯一首选标签属于该大类下的亚型时，`candidate_subtype` 记录该候选，`annotation` 保留正式注释。统计时单列候选的增量，同一亚型只计一次。对外图表、横轴、图例和图注统一使用方法名 **PCOS-CAM**。
+When the final annotation is only `Granulosa` and the unique top label from the full dictionary is a subtype within that class, `candidate_subtype` records that candidate while `annotation` remains `Granulosa`. Summaries report the candidate's added contribution separately and count each subtype only once. Public-facing plots, axes, legends, and captions use the method name **PCOS-CAM** consistently.
